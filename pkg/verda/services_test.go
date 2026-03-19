@@ -358,17 +358,15 @@ func TestStartupScriptService_AddStartupScriptFromServices(t *testing.T) {
 		_, _ = w.Write([]byte("script_new_123"))
 	})
 
-	// Set up mock response for GetByID (returns array)
+	// Set up mock response for GetByID (OpenAPI-aligned single object)
 	mockServer.SetHandler(http.MethodGet, "/scripts/script_new_123", func(w http.ResponseWriter, r *http.Request) {
-		scripts := []testutil.StartupScript{
-			{
-				ID:     "script_new_123",
-				Name:   "Setup Script",
-				Script: "#!/bin/bash\nnpm install",
-			},
+		script := testutil.StartupScript{
+			ID:     "script_new_123",
+			Name:   "Setup Script",
+			Script: "#!/bin/bash\nnpm install",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(scripts)
+		_ = json.NewEncoder(w).Encode(script)
 	})
 
 	t.Run("create startup script", func(t *testing.T) {

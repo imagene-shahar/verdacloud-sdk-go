@@ -1038,8 +1038,7 @@ func (ms *MockServer) handleGetScript(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Return as an array (to match the real API behavior)
-	writeJSON(w, []StartupScript{script})
+	writeJSON(w, script)
 }
 
 func (ms *MockServer) handleCreateScript(w http.ResponseWriter, r *http.Request) {

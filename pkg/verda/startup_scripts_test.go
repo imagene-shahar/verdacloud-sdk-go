@@ -2,6 +2,8 @@ package verda
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/verda-cloud/verdacloud-sdk-go/pkg/verda/testutil"
@@ -114,6 +116,28 @@ func TestStartupScriptService_GetStartupScriptByID(t *testing.T) {
 			if script.Script == "" {
 				t.Error("script missing Script content")
 			}
+		}
+	})
+
+	t.Run("supports legacy array response", func(t *testing.T) {
+		mockServer.SetHandler(http.MethodGet, "/scripts/script_legacy", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]StartupScript{
+				{
+					ID:     "script_legacy",
+					Name:   "Legacy Script",
+					Script: "#!/bin/bash\necho legacy",
+				},
+			})
+		})
+
+		ctx := context.Background()
+		script, err := client.StartupScripts.GetStartupScriptByID(ctx, "script_legacy")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if script.ID != "script_legacy" {
+			t.Fatalf("expected legacy script ID, got %s", script.ID)
 		}
 	})
 }
