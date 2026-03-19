@@ -87,6 +87,22 @@ func (s *ServerlessJobsService) GetJobDeploymentByName(ctx context.Context, jobN
 	return &job, nil
 }
 
+func (s *ServerlessJobsService) UpdateJobDeployment(ctx context.Context, jobName string, req *UpdateJobDeploymentRequest) (*JobDeployment, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request cannot be nil")
+	}
+	if jobName == "" {
+		return nil, fmt.Errorf("jobName is required")
+	}
+	// UpdateJobDeployment is a PATCH operation, so partial updates are allowed.
+	path := fmt.Sprintf("/job-deployments/%s", jobName)
+	job, _, err := patchRequest[JobDeployment](ctx, s.client, path, req)
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
 // DeleteJobDeployment removes a job with timeout in milliseconds (0-300000ms)
 // timeoutMs behavior:
 //   - 0: Skip waiting (returns immediately)

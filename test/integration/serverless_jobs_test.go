@@ -47,8 +47,7 @@ func TestServerlessJobsListOnly(t *testing.T) {
 // TestServerlessJobsCRUDWithScalingAndEnvVars demonstrates complete CRUD flow
 // Note: Serverless jobs API has limited endpoints compared to container deployments
 // - Environment variables CRUD is NOT supported (set at creation time only)
-// - Scaling update is NOT supported (set at creation time only)
-// - Job deployment PATCH/UPDATE is NOT supported
+// - Scaling does not have a dedicated update endpoint; use job deployment PATCH instead
 func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
@@ -135,7 +134,6 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 		}
 		jobCreated = true // Mark as successfully created
 
-		// Extract the container name from the response
 		if len(job.Containers) > 0 {
 			t.Logf("✅ Created job deployment: %s (container: %s)", job.Name, job.Containers[0].Name)
 		} else {
@@ -199,8 +197,40 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 		t.Logf("✅ Retrieved job deployment: %s (containers: %d)", job.Name, len(job.Containers))
 	})
 
-	// Step 3: LIST - List all job deployments
-	t.Run("3. LIST all job deployments", func(t *testing.T) {
+	// Step 3: UPDATE - Patch the existing job deployment
+	t.Run("3. UPDATE job deployment", func(t *testing.T) {
+		if !jobCreated {
+			t.Skip("⚠️  Skipping - job deployment was not created")
+		}
+
+		req := &verda.UpdateJobDeploymentRequest{
+			Scaling: &verda.JobScalingOptions{
+				MaxReplicaCount:        1,
+				QueueMessageTTLSeconds: 300,
+				DeadlineSeconds:        3600,
+			},
+		}
+
+		job, err := client.ServerlessJobs.UpdateJobDeployment(ctx, jobName, req)
+		if err != nil {
+			if apiErr, ok := err.(*verda.APIError); ok {
+				if apiErr.StatusCode == 504 {
+					t.Skip("⚠️  Skipping: API timeout (504) on update operation")
+				}
+				if apiErr.StatusCode == 404 {
+					t.Skip("⚠️  Skipping: Job deployment PATCH endpoint not available (404)")
+				}
+			}
+			t.Fatalf("❌ Failed to update job deployment: %v", err)
+		}
+		if job.Name != jobName {
+			t.Errorf("Expected job name %s, got %s", jobName, job.Name)
+		}
+		t.Logf("✅ Updated job deployment: %s", job.Name)
+	})
+
+	// Step 4: LIST - List all job deployments
+	t.Run("4. LIST all job deployments", func(t *testing.T) {
 		if !jobCreated {
 			t.Skip("⚠️  Skipping - job deployment was not created")
 		}
@@ -227,8 +257,8 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 		t.Logf("✅ Listed %d job deployments, found our job: %s", len(jobs), jobName)
 	})
 
-	// Step 4: GET job deployment status
-	t.Run("4. READ job deployment status", func(t *testing.T) {
+	// Step 5: GET job deployment status
+	t.Run("5. READ job deployment status", func(t *testing.T) {
 		if !jobCreated {
 			t.Skip("⚠️  Skipping - job deployment was not created")
 		}
@@ -243,8 +273,8 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 		t.Logf("✅ Job deployment status: %s", status.Status)
 	})
 
-	// Step 5: GET scaling options (read-only - update not supported for jobs)
-	t.Run("5. READ job scaling options", func(t *testing.T) {
+	// Step 6: GET scaling options
+	t.Run("6. READ job scaling options", func(t *testing.T) {
 		if !jobCreated {
 			t.Skip("⚠️  Skipping - job deployment was not created")
 		}
@@ -260,8 +290,8 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 			scaling.MaxReplicaCount, scaling.QueueMessageTTLSeconds)
 	})
 
-	// Step 6: Pause job deployment
-	t.Run("6. PAUSE job deployment", func(t *testing.T) {
+	// Step 7: Pause job deployment
+	t.Run("7. PAUSE job deployment", func(t *testing.T) {
 		if !jobCreated {
 			t.Skip("⚠️  Skipping - job deployment was not created")
 		}
@@ -279,8 +309,8 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	// Step 7: Resume job deployment
-	t.Run("7. RESUME job deployment", func(t *testing.T) {
+	// Step 8: Resume job deployment
+	t.Run("8. RESUME job deployment", func(t *testing.T) {
 		if !jobCreated {
 			t.Skip("⚠️  Skipping - job deployment was not created")
 		}
@@ -296,8 +326,8 @@ func TestServerlessJobsCRUDWithScalingAndEnvVars(t *testing.T) {
 		}
 	})
 
-	// Step 8: Purge job queue
-	t.Run("8. PURGE job deployment queue", func(t *testing.T) {
+	// Step 9: Purge job queue
+	t.Run("9. PURGE job deployment queue", func(t *testing.T) {
 		if !jobCreated {
 			t.Skip("⚠️  Skipping - job deployment was not created")
 		}
