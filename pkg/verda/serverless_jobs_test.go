@@ -13,47 +13,26 @@ func TestServerlessJobsService_GetJobDeployments(t *testing.T) {
 
 	client := NewTestClient(mockServer)
 
-	t.Run("get all job deployments", func(t *testing.T) {
-		ctx := context.Background()
-		jobs, err := client.ServerlessJobs.GetJobDeployments(ctx)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+	ctx := context.Background()
+	jobs, err := client.ServerlessJobs.GetJobDeployments(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-		if len(jobs) == 0 {
-			t.Error("expected at least one job deployment")
-		}
+	if len(jobs) != 1 {
+		t.Fatalf("expected 1 job deployment, got %d", len(jobs))
+	}
 
-		// Verify first job has expected fields
-		if len(jobs) > 0 {
-			job := jobs[0]
-			if job.Name == "" {
-				t.Error("expected job to have a Name")
-			}
-			if job.CreatedAt.IsZero() {
-				t.Error("expected job to have a CreatedAt")
-			}
-		}
-	})
-
-	t.Run("verify job structure", func(t *testing.T) {
-		ctx := context.Background()
-		jobs, err := client.ServerlessJobs.GetJobDeployments(ctx)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-
-		if len(jobs) > 0 {
-			for i, job := range jobs {
-				if job.Name == "" {
-					t.Errorf("job %d missing Name", i)
-				}
-				if job.CreatedAt.IsZero() {
-					t.Errorf("job %d missing CreatedAt", i)
-				}
-			}
-		}
-	})
+	job := jobs[0]
+	if job.Name != "flux-training" {
+		t.Fatalf("expected job name flux-training, got %s", job.Name)
+	}
+	if job.CreatedAt.IsZero() {
+		t.Fatal("expected job to have CreatedAt populated")
+	}
+	if job.Compute == nil || job.Compute.Name != "H100" {
+		t.Fatalf("expected compute H100, got %+v", job.Compute)
+	}
 }
 
 func TestServerlessJobsService_CreateJobDeployment(t *testing.T) {
@@ -110,43 +89,29 @@ func TestServerlessJobsService_CreateJobDeployment(t *testing.T) {
 			Scaling: &JobScalingOptions{
 				MaxReplicaCount:        1,
 				QueueMessageTTLSeconds: 300,
-				DeadlineSeconds:        3600, // Required: job timeout in seconds
+				DeadlineSeconds:        3600,
 			},
 		}
 
 		job, err := client.ServerlessJobs.CreateJobDeployment(ctx, req)
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
-
 		if job == nil {
 			t.Fatal("expected job, got nil")
 		}
-
-		if job.Name == "" {
-			t.Error("expected job to have a Name")
-		}
-		if job.CreatedAt.IsZero() {
-			t.Error("expected job to have a CreatedAt")
+		if job.Name != "flux-training" {
+			t.Fatalf("expected job name flux-training, got %s", job.Name)
 		}
 	})
-}
 
-func TestServerlessJobsService_GetJobDeploymentByName(t *testing.T) {
-	mockServer := testutil.NewMockServer()
-	defer mockServer.Close()
-
-	client := NewTestClient(mockServer)
-
-	t.Run("get job by name", func(t *testing.T) {
+	t.Run("validation - container without exposed port", func(t *testing.T) {
 		ctx := context.Background()
-
-		// First create a job
-		createReq := &CreateJobDeploymentRequest{
-			Name: "test-job",
+		_, err := client.ServerlessJobs.CreateJobDeployment(ctx, &CreateJobDeploymentRequest{
+			Name: "invalid-job",
 			Containers: []CreateDeploymentContainer{
 				{
-					Image: "registry-1.docker.io/python:3.9",
+					Image: "registry-1.docker.io/python:3.9.19",
 				},
 			},
 			Compute: &ContainerCompute{
@@ -158,17 +123,33 @@ func TestServerlessJobsService_GetJobDeploymentByName(t *testing.T) {
 				QueueMessageTTLSeconds: 300,
 				DeadlineSeconds:        3600,
 			},
+		})
+		if err == nil {
+			t.Fatal("expected error for missing exposed port")
 		}
-
-		created, err := client.ServerlessJobs.CreateJobDeployment(ctx, createReq)
-		if err != nil {
-			t.Fatalf("failed to create job: %v", err)
-		}
-
-		// Mock server will need a handler for this - for now we'll test the method signature
-		// In a real implementation, we'd add a specific mock handler
-		_ = created // Use the created job to avoid unused variable error
 	})
+}
+
+func TestServerlessJobsService_GetJobDeploymentByName(t *testing.T) {
+	mockServer := testutil.NewMockServer()
+	defer mockServer.Close()
+
+	client := NewTestClient(mockServer)
+
+	ctx := context.Background()
+	job, err := client.ServerlessJobs.GetJobDeploymentByName(ctx, "flux-training")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if job == nil {
+		t.Fatal("expected job, got nil")
+	}
+	if job.Name != "flux-training" {
+		t.Fatalf("expected job name flux-training, got %s", job.Name)
+	}
+	if len(job.Containers) != 1 {
+		t.Fatalf("expected 1 container, got %d", len(job.Containers))
+	}
 }
 
 func TestServerlessJobsService_UpdateJobDeployment(t *testing.T) {
@@ -211,7 +192,7 @@ func TestServerlessJobsService_UpdateJobDeployment(t *testing.T) {
 		}
 		job, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "test-job", req)
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if job == nil {
 			t.Fatal("expected job, got nil")
@@ -231,7 +212,7 @@ func TestServerlessJobsService_UpdateJobDeployment(t *testing.T) {
 		}
 		job, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "test-job", req)
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if job == nil {
 			t.Fatal("expected job, got nil")
@@ -261,36 +242,29 @@ func TestServerlessJobsService_DeleteJobDeployment(t *testing.T) {
 
 	client := NewTestClient(mockServer)
 
-	t.Run("delete job deployment", func(t *testing.T) {
-		ctx := context.Background()
+	ctx := context.Background()
+	if err := client.ServerlessJobs.DeleteJobDeployment(ctx, "test-job-delete", 0); err != nil {
+		t.Fatalf("unexpected error deleting job deployment: %v", err)
+	}
+}
 
-		// First create a job
-		createReq := &CreateJobDeploymentRequest{
-			Name: "test-job-delete",
-			Containers: []CreateDeploymentContainer{
-				{
-					Image: "registry-1.docker.io/python:3.9",
-				},
-			},
-			Compute: &ContainerCompute{
-				Name: "H100",
-				Size: 1,
-			},
-			Scaling: &JobScalingOptions{
-				MaxReplicaCount:        1,
-				QueueMessageTTLSeconds: 300,
-				DeadlineSeconds:        3600,
-			},
-		}
+func TestServerlessJobsService_GetJobDeploymentScaling(t *testing.T) {
+	mockServer := testutil.NewMockServer()
+	defer mockServer.Close()
 
-		_, err := client.ServerlessJobs.CreateJobDeployment(ctx, createReq)
-		if err != nil {
-			t.Fatalf("failed to create job: %v", err)
-		}
+	client := NewTestClient(mockServer)
 
-		// Note: Mock server doesn't implement DELETE yet, so we can't fully test this
-		// In a real scenario, we'd add the handler and test the deletion
-	})
+	ctx := context.Background()
+	scaling, err := client.ServerlessJobs.GetJobDeploymentScaling(ctx, "flux-training")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if scaling.MaxReplicaCount != 2 {
+		t.Fatalf("expected max replica count 2, got %d", scaling.MaxReplicaCount)
+	}
+	if scaling.DeadlineSeconds != 3600 {
+		t.Fatalf("expected deadline seconds 3600, got %d", scaling.DeadlineSeconds)
+	}
 }
 
 func TestServerlessJobsService_GetJobDeploymentStatus(t *testing.T) {
@@ -299,36 +273,14 @@ func TestServerlessJobsService_GetJobDeploymentStatus(t *testing.T) {
 
 	client := NewTestClient(mockServer)
 
-	t.Run("get job status", func(t *testing.T) {
-		ctx := context.Background()
-
-		// Create a job first
-		createReq := &CreateJobDeploymentRequest{
-			Name: "test-job-status",
-			Containers: []CreateDeploymentContainer{
-				{
-					Image: "registry-1.docker.io/python:3.9",
-				},
-			},
-			Compute: &ContainerCompute{
-				Name: "H100",
-				Size: 1,
-			},
-			Scaling: &JobScalingOptions{
-				MaxReplicaCount:        1,
-				QueueMessageTTLSeconds: 300,
-				DeadlineSeconds:        3600,
-			},
-		}
-
-		_, err := client.ServerlessJobs.CreateJobDeployment(ctx, createReq)
-		if err != nil {
-			t.Fatalf("failed to create job: %v", err)
-		}
-
-		// Note: Mock server doesn't implement status endpoint yet
-		// In production, this would return active/succeeded/failed job counts
-	})
+	ctx := context.Background()
+	status, err := client.ServerlessJobs.GetJobDeploymentStatus(ctx, "flux-training")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status.Status != "running" {
+		t.Fatalf("expected status running, got %s", status.Status)
+	}
 }
 
 func TestServerlessJobsService_JobOperations(t *testing.T) {
@@ -336,45 +288,15 @@ func TestServerlessJobsService_JobOperations(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewTestClient(mockServer)
+	ctx := context.Background()
 
-	t.Run("test job lifecycle operations", func(t *testing.T) {
-		ctx := context.Background()
-
-		// Create a job
-		createReq := &CreateJobDeploymentRequest{
-			Name: "test-job-ops",
-			Containers: []CreateDeploymentContainer{
-				{
-					Image: "registry-1.docker.io/python:3.9",
-				},
-			},
-			Compute: &ContainerCompute{
-				Name: "H100",
-				Size: 1,
-			},
-			Scaling: &JobScalingOptions{
-				MaxReplicaCount:        1,
-				QueueMessageTTLSeconds: 300,
-				DeadlineSeconds:        3600,
-			},
-		}
-
-		job, err := client.ServerlessJobs.CreateJobDeployment(ctx, createReq)
-		if err != nil {
-			t.Fatalf("failed to create job: %v", err)
-		}
-
-		if job == nil {
-			t.Fatal("expected job, got nil")
-		}
-
-		// Test that the operation methods have correct signatures
-		// Note: Mock server doesn't fully implement these endpoints yet
-		// but we verify the methods exist and can be called
-		jobName := "test-job-ops"
-
-		// These would fail against real mock server without handlers
-		// but we're verifying method signatures exist
-		_ = jobName
-	})
+	if err := client.ServerlessJobs.PauseJobDeployment(ctx, "flux-training"); err != nil {
+		t.Fatalf("unexpected error pausing job deployment: %v", err)
+	}
+	if err := client.ServerlessJobs.ResumeJobDeployment(ctx, "flux-training"); err != nil {
+		t.Fatalf("unexpected error resuming job deployment: %v", err)
+	}
+	if err := client.ServerlessJobs.PurgeJobDeploymentQueue(ctx, "flux-training"); err != nil {
+		t.Fatalf("unexpected error purging job deployment queue: %v", err)
+	}
 }

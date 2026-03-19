@@ -10,6 +10,23 @@ type ServerlessJobsService struct {
 	client *Client
 }
 
+func validateUpdateJobDeploymentRequest(req *UpdateJobDeploymentRequest) error {
+	if req == nil {
+		return fmt.Errorf("request cannot be nil")
+	}
+
+	for i, container := range req.Containers {
+		if container.Name == "" {
+			return fmt.Errorf("containers[%d].name is required", i)
+		}
+		if container.Image != "" && isLatestTag(container.Image) {
+			return fmt.Errorf("containers[%d].image: 'latest' tag is not allowed, please specify a specific version tag (e.g., alpine:3.19)", i)
+		}
+	}
+
+	return nil
+}
+
 func (s *ServerlessJobsService) GetJobDeployments(ctx context.Context) ([]JobDeploymentShortInfo, error) {
 	jobs, _, err := getRequest[[]JobDeploymentShortInfo](ctx, s.client, "/job-deployments")
 	if err != nil {
@@ -55,6 +72,9 @@ func validateCreateJobDeploymentRequest(req *CreateJobDeploymentRequest) error {
 		if c.Image == "" {
 			return fmt.Errorf("containers[%d].image is required", i)
 		}
+		if c.ExposedPort == 0 {
+			return fmt.Errorf("containers[%d].exposed_port is required", i)
+		}
 		// Check for "latest" tag - API does not allow it
 		if isLatestTag(c.Image) {
 			return fmt.Errorf("containers[%d].image: 'latest' tag is not allowed, please specify a specific version tag (e.g., alpine:3.19)", i)
@@ -88,13 +108,13 @@ func (s *ServerlessJobsService) GetJobDeploymentByName(ctx context.Context, jobN
 }
 
 func (s *ServerlessJobsService) UpdateJobDeployment(ctx context.Context, jobName string, req *UpdateJobDeploymentRequest) (*JobDeployment, error) {
-	if req == nil {
-		return nil, fmt.Errorf("request cannot be nil")
-	}
 	if jobName == "" {
 		return nil, fmt.Errorf("jobName is required")
 	}
-	// UpdateJobDeployment is a PATCH operation, so partial updates are allowed.
+	if err := validateUpdateJobDeploymentRequest(req); err != nil {
+		return nil, err
+	}
+
 	path := fmt.Sprintf("/job-deployments/%s", jobName)
 	job, _, err := patchRequest[JobDeployment](ctx, s.client, path, req)
 	if err != nil {

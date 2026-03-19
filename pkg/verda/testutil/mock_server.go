@@ -609,10 +609,20 @@ func (ms *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		ms.handleGetJobDeployments(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/job-deployments":
 		ms.handleCreateJobDeployment(w, r)
-	case r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
-		ms.handleUpdateJobDeployment(w, r)
 	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/scaling") && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
 		ms.handleGetJobDeploymentScaling(w, r)
+	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/status") && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handleGetJobDeploymentStatus(w, r)
+	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/pause") && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handlePauseJobDeployment(w, r)
+	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/resume") && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handleResumeJobDeployment(w, r)
+	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/purge-queue") && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handlePurgeJobDeploymentQueue(w, r)
+	case r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handleUpdateJobDeployment(w, r)
+	case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handleDeleteJobDeployment(w, r)
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
 		ms.handleGetJobDeploymentByName(w, r)
 	default:
@@ -2022,6 +2032,11 @@ func (ms *MockServer) handleCreateJobDeployment(w http.ResponseWriter, r *http.R
 			writeJSON(w, map[string]interface{}{"error": "containers[" + string(rune('0'+i)) + "].image is required"})
 			return
 		}
+		if container["exposed_port"] == nil || container["exposed_port"] == float64(0) {
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]interface{}{"error": "containers[" + string(rune('0'+i)) + "].exposed_port is required"})
+			return
+		}
 	}
 	if req["compute"] == nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -2160,8 +2175,32 @@ func (ms *MockServer) handleUpdateJobDeployment(w http.ResponseWriter, r *http.R
 
 func (ms *MockServer) handleGetJobDeploymentScaling(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	// Return same response as container deployment scaling (ScalingOptions)
-	writeBytes(w, []byte(mockScalingOptionsResponse))
+	writeBytes(w, []byte(`{
+		"max_replica_count": 2,
+		"queue_message_ttl_seconds": 300,
+		"deadline_seconds": 3600
+	}`))
+}
+
+func (ms *MockServer) handleGetJobDeploymentStatus(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	writeBytes(w, []byte(`{"status":"running"}`))
+}
+
+func (ms *MockServer) handlePauseJobDeployment(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (ms *MockServer) handleResumeJobDeployment(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (ms *MockServer) handlePurgeJobDeploymentQueue(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (ms *MockServer) handleDeleteJobDeployment(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 func (ms *MockServer) handleGetJobDeploymentByName(w http.ResponseWriter, _ *http.Request) {
