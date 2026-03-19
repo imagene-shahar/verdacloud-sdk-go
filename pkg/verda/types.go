@@ -146,6 +146,12 @@ type InstanceActionResult struct {
 	StatusCode int    `json:"statusCode,omitempty"`
 }
 
+// InstanceListOptions represents the supported filters for listing instances.
+type InstanceListOptions struct {
+	Status    string
+	ComputeID string
+}
+
 // InstanceAvailability represents instance availability information
 type InstanceAvailability struct {
 	LocationCode   string   `json:"location_code"`
@@ -337,19 +343,20 @@ const (
 
 // Instance status constants
 const (
-	StatusNew          = "new"
-	StatusOrdered      = "ordered"
-	StatusProvisioning = "provisioning"
-	StatusValidating   = "validating"
-	StatusRunning      = "running"
-	StatusOffline      = "offline"
-	StatusPending      = "pending"
-	StatusDiscontinued = "discontinued"
-	StatusUnknown      = "unknown"
-	StatusNotFound     = "notfound"
-	StatusError        = "error"
-	StatusDeleting     = "deleting"
-	StatusNoCapacity   = "no_capacity"
+	StatusNew                = "new"
+	StatusOrdered            = "ordered"
+	StatusProvisioning       = "provisioning"
+	StatusValidating         = "validating"
+	StatusRunning            = "running"
+	StatusOffline            = "offline"
+	StatusPending            = "pending"
+	StatusDiscontinued       = "discontinued"
+	StatusUnknown            = "unknown"
+	StatusNotFound           = "notfound"
+	StatusError              = "error"
+	StatusDeleting           = "deleting"
+	StatusNoCapacity         = "no_capacity"
+	StatusInstallationFailed = "installation_failed"
 )
 
 // Default location (used when no location is specified)
@@ -373,6 +380,13 @@ const (
 	VolumeTypeNVMeLocalStorage  = "NVMe_Local_Storage"
 	VolumeTypeNVMeSharedCluster = "NVMe_Shared_Cluster"
 	VolumeTypeNVMeOSCluster     = "NVMe_OS_Cluster"
+)
+
+// Volume on-spot discontinue behavior constants.
+const (
+	VolumeOnSpotDiscontinueKeepDetached = "keep_detached"
+	VolumeOnSpotDiscontinueMoveToTrash  = "move_to_trash"
+	VolumeOnSpotDiscontinueDelete       = "delete_permanently"
 )
 
 // Volume status constants - these match the actual API values

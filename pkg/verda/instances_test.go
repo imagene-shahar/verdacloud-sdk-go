@@ -53,6 +53,35 @@ func TestInstanceService_Get(t *testing.T) {
 			t.Errorf("expected 1 instance, got %d", len(instances))
 		}
 	})
+
+	t.Run("get instances with computeId filter", func(t *testing.T) {
+		filterClient := NewTestClient(mockServer)
+		querySeen := false
+		filterClient.AddRequestMiddleware(func(next RequestHandler) RequestHandler {
+			return func(ctx *RequestContext) error {
+				if ctx.Path == "/instances" && ctx.Query.Get("computeId") == "gpu-h100" {
+					querySeen = true
+				}
+				return next(ctx)
+			}
+		})
+
+		ctx := context.Background()
+		instances, err := filterClient.Instances.GetWithOptions(ctx, InstanceListOptions{
+			Status:    StatusRunning,
+			ComputeID: "gpu-h100",
+		})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		if !querySeen {
+			t.Fatal("expected computeId query parameter to be sent")
+		}
+		if len(instances) != 1 {
+			t.Errorf("expected 1 instance, got %d", len(instances))
+		}
+	})
 }
 
 func TestInstanceService_GetByID(t *testing.T) {
@@ -267,6 +296,21 @@ func TestInstanceService_Action(t *testing.T) {
 		}
 		if len(results) != 2 {
 			t.Fatalf("expected 2 results, got %d", len(results))
+		}
+	})
+
+	t.Run("action detailed returns results", func(t *testing.T) {
+		ctx := context.Background()
+		results, err := client.Instances.ActionDetailed(ctx, []string{"inst_123", "inst_456"}, ActionShutdown, nil, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(results) != 2 {
+			t.Fatalf("expected 2 action results, got %d", len(results))
+		}
+		if results[0].Action != ActionShutdown {
+			t.Fatalf("expected action %s, got %s", ActionShutdown, results[0].Action)
 		}
 	})
 
@@ -521,6 +565,20 @@ func TestInstanceService_ConvenienceMethods(t *testing.T) {
 		err := client.Instances.Delete(ctx, []string{"inst_123"}, []string{"vol_123"}, true)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("delete permanently returns action results", func(t *testing.T) {
+		ctx := context.Background()
+		results, err := client.Instances.DeletePermanently(ctx, []string{"vol_123"}, "inst_123")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("expected 1 action result, got %d", len(results))
+		}
+		if results[0].Status != "success" {
+			t.Fatalf("expected action status success, got %s", results[0].Status)
 		}
 	})
 

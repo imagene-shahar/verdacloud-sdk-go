@@ -15,10 +15,19 @@ type InstanceService struct {
 }
 
 func (s *InstanceService) Get(ctx context.Context, status string) ([]Instance, error) {
+	return s.GetWithOptions(ctx, InstanceListOptions{Status: status})
+}
+
+func (s *InstanceService) GetWithOptions(ctx context.Context, options InstanceListOptions) ([]Instance, error) {
 	path := "/instances"
-	if status != "" {
-		params := url.Values{}
-		params.Set("status", status)
+	params := url.Values{}
+	if options.Status != "" {
+		params.Set("status", options.Status)
+	}
+	if options.ComputeID != "" {
+		params.Set("computeId", options.ComputeID)
+	}
+	if len(params) > 0 {
 		path += "?" + params.Encode()
 	}
 
@@ -131,6 +140,21 @@ func (s *InstanceService) Action(ctx context.Context, req InstanceActionRequest)
 	}
 }
 
+func (s *InstanceService) ActionDetailed(
+	ctx context.Context,
+	ids []string,
+	action string,
+	volumeIDs []string,
+	deletePermanently bool,
+) ([]InstanceActionResult, error) {
+	return s.Action(ctx, InstanceActionRequest{
+		Action:            action,
+		ID:                ids,
+		VolumeIDs:         volumeIDs,
+		DeletePermanently: deletePermanently,
+	})
+}
+
 func (s *InstanceService) GetLocationAvailabilities(ctx context.Context) ([]LocationAvailability, error) {
 	availabilities, _, err := getRequest[[]LocationAvailability](ctx, s.client, "/instance-availability")
 	if err != nil {
@@ -200,6 +224,10 @@ func (s *InstanceService) Shutdown(ctx context.Context, ids ...string) error {
 func (s *InstanceService) Delete(ctx context.Context, ids []string, volumeIDs []string, deletePermanently bool) error {
 	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionDelete, ID: ids, VolumeIDs: volumeIDs, DeletePermanently: deletePermanently})
 	return err
+}
+
+func (s *InstanceService) DeletePermanently(ctx context.Context, volumeIDs []string, ids ...string) ([]InstanceActionResult, error) {
+	return s.ActionDetailed(ctx, ids, ActionDelete, volumeIDs, true)
 }
 
 func (s *InstanceService) Discontinue(ctx context.Context, ids []string, volumeIDs []string, deletePermanently bool) error {
