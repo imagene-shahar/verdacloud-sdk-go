@@ -171,6 +171,90 @@ func TestServerlessJobsService_GetJobDeploymentByName(t *testing.T) {
 	})
 }
 
+func TestServerlessJobsService_UpdateJobDeployment(t *testing.T) {
+	mockServer := testutil.NewMockServer()
+	defer mockServer.Close()
+
+	client := NewTestClient(mockServer)
+
+	t.Run("validation - nil request", func(t *testing.T) {
+		ctx := context.Background()
+		_, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "test-job", nil)
+		if err == nil {
+			t.Error("expected error for nil request")
+		}
+	})
+
+	t.Run("validation - empty job name", func(t *testing.T) {
+		ctx := context.Background()
+		req := &UpdateJobDeploymentRequest{
+			Scaling: &JobScalingOptions{
+				MaxReplicaCount:        2,
+				QueueMessageTTLSeconds: 300,
+				DeadlineSeconds:        3600,
+			},
+		}
+		_, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "", req)
+		if err == nil {
+			t.Error("expected error for empty job name")
+		}
+	})
+
+	t.Run("partial update - scaling only", func(t *testing.T) {
+		ctx := context.Background()
+		req := &UpdateJobDeploymentRequest{
+			Scaling: &JobScalingOptions{
+				MaxReplicaCount:        2,
+				QueueMessageTTLSeconds: 300,
+				DeadlineSeconds:        3600,
+			},
+		}
+		job, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "test-job", req)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("expected job, got nil")
+		}
+	})
+
+	t.Run("container update - with name", func(t *testing.T) {
+		ctx := context.Background()
+		req := &UpdateJobDeploymentRequest{
+			Containers: []CreateDeploymentContainer{
+				{
+					Name:        "random-logger-0",
+					Image:       "registry-1.docker.io/chentex/random-logger:v1.0.1",
+					ExposedPort: 8080,
+				},
+			},
+		}
+		job, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "test-job", req)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("expected job, got nil")
+		}
+	})
+
+	t.Run("validation - updating container without name", func(t *testing.T) {
+		ctx := context.Background()
+		req := &UpdateJobDeploymentRequest{
+			Containers: []CreateDeploymentContainer{
+				{
+					Image:       "registry-1.docker.io/chentex/random-logger:v1.0.1",
+					ExposedPort: 8080,
+				},
+			},
+		}
+		_, err := client.ServerlessJobs.UpdateJobDeployment(ctx, "test-job", req)
+		if err == nil {
+			t.Error("expected error when container name is missing")
+		}
+	})
+}
+
 func TestServerlessJobsService_DeleteJobDeployment(t *testing.T) {
 	mockServer := testutil.NewMockServer()
 	defer mockServer.Close()

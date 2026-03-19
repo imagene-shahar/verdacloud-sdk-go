@@ -557,6 +557,8 @@ func (ms *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 		ms.handleGetJobDeployments(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/job-deployments":
 		ms.handleCreateJobDeployment(w, r)
+	case r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
+		ms.handleUpdateJobDeployment(w, r)
 	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/scaling") && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
 		ms.handleGetJobDeploymentScaling(w, r)
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/job-deployments/"):
@@ -2123,6 +2125,66 @@ func (ms *MockServer) handleCreateJobDeployment(w http.ResponseWriter, r *http.R
 		"queue_message_ttl_seconds": 300,
 		"deadline_seconds": 600
 	}
+	}`
+
+	writeBytes(w, []byte(response))
+}
+
+func (ms *MockServer) handleUpdateJobDeployment(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var req map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "invalid JSON"})
+		return
+	}
+
+	if containers, ok := req["containers"].([]interface{}); ok && len(containers) > 0 {
+		for i, c := range containers {
+			container, ok := c.(map[string]interface{})
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				writeJSON(w, map[string]string{"error": "invalid container format"})
+				return
+			}
+			name, hasName := container["name"]
+			if !hasName || name == nil || name == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				writeJSON(w, map[string]interface{}{
+					"message": "containers." + string(rune('0'+i)) + ".name should not be null or undefined",
+				})
+				return
+			}
+		}
+	}
+
+	response := `{
+		"name": "test-job",
+		"containers": [
+			{
+				"name": "updated-job-container",
+				"image": {
+					"image": "registry-1.docker.io/chentex/random-logger:v1.0.1",
+					"last_updated_at": "2025-11-26T16:37:50.932Z"
+				},
+				"exposed_port": 8080
+			}
+		],
+		"endpoint_base_url": "https://containers.datacrunch.io/test-job",
+		"created_at": "2021-08-31T12:00:00.000Z",
+		"compute": {
+			"name": "H100",
+			"size": 1
+		},
+		"container_registry_settings": {
+			"is_private": false
+		},
+		"scaling": {
+			"max_replica_count": 2,
+			"queue_message_ttl_seconds": 300,
+			"deadline_seconds": 3600
+		}
 	}`
 
 	writeBytes(w, []byte(response))
