@@ -69,7 +69,7 @@ func cleanupInstance(t *testing.T, client *verda.Client, instanceID string) {
 
 	// Retry delete up to 3 times with backoff
 	for attempt := 1; attempt <= 3; attempt++ {
-		err := client.Instances.Delete(ctx, nil, instanceID)
+		err := client.Instances.Delete(ctx, []string{instanceID}, nil, false)
 		if err == nil {
 			t.Log("   ✅ Deleted successfully")
 			time.Sleep(10 * time.Second)
@@ -78,7 +78,7 @@ func cleanupInstance(t *testing.T, client *verda.Client, instanceID string) {
 		t.Logf("   ⚠️  Delete attempt %d failed: %v", attempt, err)
 
 		// Try discontinue as fallback
-		if discErr := client.Instances.Discontinue(ctx, instanceID); discErr == nil {
+		if discErr := client.Instances.Discontinue(ctx, []string{instanceID}, nil, false); discErr == nil {
 			t.Log("   ✅ Discontinued successfully")
 			time.Sleep(10 * time.Second)
 			return

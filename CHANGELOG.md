@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump minimum Go version to 1.25 (fixes GO-2026-4602, GO-2026-4601 stdlib vulnerabilities)
 - Update CI test matrix from Go 1.23/1.24 to Go 1.24/1.25
 
+### Added
+- feat(serverless-jobs): Add PATCH support for updating existing job deployments
+
+### Fixed
+- fix(testutil): Deduplicate mock server PATCH handlers to satisfy golangci-lint
+
 ## [v1.2.2] - 2026-02-25
 ### Changed
 - chore(volumes): Add missing attributes for shared filesystem volumes
