@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v1.3.0] - 2026-03-20
 ### Added
 - Add spot volume removal policy (`on_spot_discontinue`) and related constants
 - Add `delete_permanently` field to `InstanceActionRequest`
 - Add `InstanceActionResult` type for action responses and handle response code properly
+- Add PATCH support for updating existing serverless job deployments
 
 ### Changed
 - **Breaking**: `Action` now takes `InstanceActionRequest` struct and returns `([]InstanceActionResult, error)`
@@ -19,12 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump minimum Go version to 1.25 (fixes GO-2026-4602, GO-2026-4601 stdlib vulnerabilities)
 - Update CI test matrix from Go 1.23/1.24 to Go 1.24/1.25
 
-### Added
-- feat(serverless-jobs): Add PATCH support for updating existing job deployments
-
 ### Fixed
 - fix(container-deployments): Align environment variable response payloads and enforce scaling updates via the dedicated scaling endpoint
 - fix(testutil): Deduplicate mock server PATCH handlers to satisfy golangci-lint
+- Deduplicate mock server PATCH handlers to satisfy golangci-lint
 
 ## [v1.2.2] - 2026-02-25
 ### Changed
