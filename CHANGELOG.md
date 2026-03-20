@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(serverless-jobs): Add PATCH support for updating existing job deployments
 
 ### Fixed
+- fix(volumes): Align delete requests, trash listing, and clone payloads with the OpenAPI volume contract
 - fix(testutil): Deduplicate mock server PATCH handlers to satisfy golangci-lint
 
 ## [v1.2.2] - 2026-02-25
