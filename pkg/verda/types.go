@@ -77,10 +77,11 @@ type CreateInstanceRequest struct {
 
 // VolumeCreateRequest represents a volume to be created
 type VolumeCreateRequest struct {
-	Size         int    `json:"size"`
-	Type         string `json:"type"`
-	Name         string `json:"name"`
-	LocationCode string `json:"location_code,omitempty"`
+	Size              int    `json:"size"`
+	Type              string `json:"type"`
+	Name              string `json:"name"`
+	LocationCode      string `json:"location_code,omitempty"`
+	OnSpotDiscontinue string `json:"on_spot_discontinue,omitempty"`
 }
 
 // VolumeAttachRequest represents a request to attach a volume to an instance
@@ -120,15 +121,29 @@ type VolumeRenameRequest struct {
 
 // OSVolumeCreateRequest represents OS volume configuration
 type OSVolumeCreateRequest struct {
-	Name string `json:"name"`
-	Size int    `json:"size"`
+	Name              string `json:"name"`
+	Size              int    `json:"size"`
+	OnSpotDiscontinue string `json:"on_spot_discontinue,omitempty"`
 }
 
-// InstanceActionRequest represents an action to perform on instances
+// InstanceActionRequest represents an action to perform on instances.
+// VolumeIDs: nil omits the field (API default: OS volume deleted, rest detached),
+// empty slice sends [] (no volumes deleted), slice with IDs deletes those volumes.
 type InstanceActionRequest struct {
-	Action    string   `json:"action"`
-	ID        []string `json:"id"`
-	VolumeIDs []string `json:"volume_ids,omitempty"`
+	Action            string   `json:"action"`
+	ID                []string `json:"id"`
+	VolumeIDs         []string `json:"volume_ids"`
+	DeletePermanently bool     `json:"delete_permanently,omitempty"`
+}
+
+// InstanceActionResult represents the per-instance outcome of an action request.
+// Returned as an array for 202 (all succeeded) and 207 (some failed) responses.
+type InstanceActionResult struct {
+	Action     string `json:"action"`
+	InstanceID string `json:"instanceId"`
+	Status     string `json:"status"`
+	Error      string `json:"error,omitempty"`
+	StatusCode int    `json:"statusCode,omitempty"`
 }
 
 // InstanceAvailability represents instance availability information
@@ -321,7 +336,6 @@ const (
 )
 
 // Instance status constants
-// Instance status constants
 const (
 	StatusNew          = "new"
 	StatusOrdered      = "ordered"
@@ -341,6 +355,13 @@ const (
 // Default location (used when no location is specified)
 const (
 	LocationFIN01 = "FIN-01"
+)
+
+// Spot discontinue policy constants for volume behavior when a spot instance is discontinued
+const (
+	SpotDiscontinueKeepDetached    = "keep_detached"
+	SpotDiscontinueMoveToTrash     = "move_to_trash"
+	SpotDiscontinueDeletePermanent = "delete_permanently"
 )
 
 // Volume type constants

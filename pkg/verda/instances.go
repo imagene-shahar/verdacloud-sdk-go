@@ -95,15 +95,40 @@ func (s *InstanceService) createWithPlainTextResponse(ctx context.Context, req C
 	return &instance, nil
 }
 
-func (s *InstanceService) Action(ctx context.Context, ids []string, action string, volumeIDs []string) error {
-	req := InstanceActionRequest{
-		Action:    action,
-		ID:        ids,
-		VolumeIDs: volumeIDs,
+// Action performs an action on one or more instances.
+func (s *InstanceService) Action(ctx context.Context, req InstanceActionRequest) ([]InstanceActionResult, error) {
+	resp, err := s.client.makeRequest(ctx, http.MethodPut, "/instances", req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	_, _, err := putRequest[any](ctx, s.client, "/instances", req)
-	return err
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		return nil, nil
+
+	case http.StatusAccepted, http.StatusMultiStatus:
+		var results []InstanceActionResult
+		if err := json.Unmarshal(body, &results); err != nil {
+			return nil, fmt.Errorf("failed to parse action results: %w", err)
+		}
+		return results, nil
+
+	default:
+		var apiError APIError
+		if err := json.Unmarshal(body, &apiError); err != nil {
+			return nil, &APIError{StatusCode: resp.StatusCode, Message: string(body)}
+		}
+		apiError.StatusCode = resp.StatusCode
+		return nil, &apiError
+	}
 }
 
 func (s *InstanceService) GetLocationAvailabilities(ctx context.Context) ([]LocationAvailability, error) {
@@ -158,47 +183,58 @@ func (s *InstanceService) CheckInstanceTypeAvailability(ctx context.Context, ins
 }
 
 func (s *InstanceService) Boot(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionBoot, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionBoot, ID: ids})
+	return err
 }
 
 func (s *InstanceService) Start(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionStart, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionStart, ID: ids})
+	return err
 }
 
 func (s *InstanceService) Shutdown(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionShutdown, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionShutdown, ID: ids})
+	return err
 }
 
-func (s *InstanceService) Delete(ctx context.Context, volumeIDs []string, ids ...string) error {
-	return s.Action(ctx, ids, ActionDelete, volumeIDs)
+func (s *InstanceService) Delete(ctx context.Context, ids []string, volumeIDs []string, deletePermanently bool) error {
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionDelete, ID: ids, VolumeIDs: volumeIDs, DeletePermanently: deletePermanently})
+	return err
 }
 
-func (s *InstanceService) Discontinue(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionDiscontinue, nil)
+func (s *InstanceService) Discontinue(ctx context.Context, ids []string, volumeIDs []string, deletePermanently bool) error {
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionDiscontinue, ID: ids, VolumeIDs: volumeIDs, DeletePermanently: deletePermanently})
+	return err
 }
 
 // Hibernate shuts down and archives an instance - must be shut down first or API will error.
 // Volumes are detached and the instance is deleted during hibernation.
 func (s *InstanceService) Hibernate(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionHibernate, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionHibernate, ID: ids})
+	return err
 }
 
 func (s *InstanceService) ConfigureSpot(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionConfigureSpot, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionConfigureSpot, ID: ids})
+	return err
 }
 
 func (s *InstanceService) ForceShutdown(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionForceShutdown, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionForceShutdown, ID: ids})
+	return err
 }
 
 func (s *InstanceService) DeleteStuck(ctx context.Context, volumeIDs []string, ids ...string) error {
-	return s.Action(ctx, ids, ActionDeleteStuck, volumeIDs)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionDeleteStuck, ID: ids, VolumeIDs: volumeIDs})
+	return err
 }
 
 func (s *InstanceService) Deploy(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionDeploy, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionDeploy, ID: ids})
+	return err
 }
 
 func (s *InstanceService) Transfer(ctx context.Context, ids ...string) error {
-	return s.Action(ctx, ids, ActionTransfer, nil)
+	_, err := s.Action(ctx, InstanceActionRequest{Action: ActionTransfer, ID: ids})
+	return err
 }

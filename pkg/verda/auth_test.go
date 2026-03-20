@@ -115,11 +115,11 @@ func TestAuthService_RefreshToken(t *testing.T) {
 
 		// Set up mock server to fail refresh but succeed authentication
 		mockServer.SetHandler(http.MethodPost, "/oauth2/token", func(w http.ResponseWriter, r *http.Request) {
-			if err := r.ParseForm(); err != nil {
+			if err := r.ParseForm(); err != nil { //nolint:gosec // G120: test mock server
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if r.FormValue("grant_type") == "refresh_token" {
+			if r.FormValue("grant_type") == "refresh_token" { //nolint:gosec // G120: test mock server
 				// Fail refresh
 				testutil.ErrorResponse(w, http.StatusBadRequest, "Invalid refresh token")
 				return

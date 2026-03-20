@@ -227,7 +227,7 @@ func (c *Client) Do(req *http.Request, result any) (*Response, error) {
 		}
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.HTTPClient.Do(req) //nolint:gosec // G704: SDK client - URL is configured by caller
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

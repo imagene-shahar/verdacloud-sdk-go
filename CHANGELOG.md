@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add spot volume removal policy (`on_spot_discontinue`) and related constants
+- Add `delete_permanently` field to `InstanceActionRequest`
+- Add `InstanceActionResult` type for action responses and handle response code properly
+
+### Changed
+- **Breaking**: `Action` now takes `InstanceActionRequest` struct and returns `([]InstanceActionResult, error)`
+- **Breaking**: `Delete` and `Discontinue` add `deletePermanently bool` parameter
+- `Action` properly handles 202 (success), 204 (already in state), 207 (partial failure), 400, 404
+- Remove `omitempty` from `VolumeIDs` to distinguish nil (API default) from empty array (no volumes)
+- Bump minimum Go version to 1.25 (fixes GO-2026-4602, GO-2026-4601 stdlib vulnerabilities)
+- Update CI test matrix from Go 1.23/1.24 to Go 1.24/1.25
 
 ## [v1.2.2] - 2026-02-25
 ### Changed

@@ -70,7 +70,7 @@ func (s *AuthService) authenticateWithoutLock() (*TokenResponse, error) {
 
 // doTokenRequest tries JSON first (production), falls back to form-encoded (staging quirk)
 func (s *AuthService) doTokenRequest(body TokenRequest) (*TokenResponse, error) {
-	payload, err := json.Marshal(body)
+	payload, err := json.Marshal(body) //nolint:gosec // G117: OAuth token request must include client_secret
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal token request: %w", err)
 	}
